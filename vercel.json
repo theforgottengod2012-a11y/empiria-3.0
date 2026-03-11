@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "name": "empiria-bot",
+  "env": {
+    "MONGODB_URI": "@mongodb_uri",
+    "DISCORD_TOKEN": "@discord_token",
+    "CLIENT_ID": "@client_id",
+    "GUILD_ID": "@guild_id"
+  },
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ],
+  "functions": {
+    "server.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}
