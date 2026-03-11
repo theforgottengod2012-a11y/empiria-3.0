@@ -7,12 +7,6 @@
     "CLIENT_ID": "@client_id",
     "GUILD_ID": "@guild_id"
   },
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
     {
       "src": "/(.*)",
