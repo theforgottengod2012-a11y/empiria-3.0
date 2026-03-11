@@ -1,20 +1,72 @@
-const Clan = require("../../database/models/Clan");
+const User = require("../database/models/User");
+
+async function getLeaderboard(type, limit = 10) {
+  let users = await User.find({ isBot: { $not: { $eq: true } } });
+
+  let sorted;
+
+  switch (type) {
+    case "money":
+      sorted = users.sort((a, b) =>
+        (b.wallet + b.bank) - (a.wallet + a.bank)
+      );
+      break;
+
+    case "networth":
+      sorted = users.sort((a, b) =>
+        calculateNetworth(b) - calculateNetworth(a)
+      );
+      break;
+
+    case "level":
+      sorted = users.sort((a, b) => b.level - a.level);
+      break;
+
+    case "prestige":
+      sorted = users.sort((a, b) =>
+        (b.prestige?.level || 0) - (a.prestige?.level || 0)
+      );
+      break;
+
+    case "gamble":
+      sorted = users.sort((a, b) =>
+        (b.gambling?.totalWon || 0) - (a.gambling?.totalWon || 0)
+      );
+      break;
+
+    case "pets":
+      sorted = users.sort((a, b) =>
+        (b.pets?.ownedPets?.length || 0) -
+        (a.pets?.ownedPets?.length || 0)
+      );
+      break;
+
+    default:
+      return null;
+  }
+
+  return sorted.slice(0, limit);
+}
+
+function calculateNetworth(user) {
+  let inventoryValue = 0;
+
+  if (user.inventory) {
+    for (const item of user.inventory) {
+      inventoryValue += (item.quantity || 1) * 100; // base value
+    }
+  }
+
+  let petValue = (user.pets?.ownedPets?.length || 0) * 5000;
+
+  return (
+    user.wallet +
+    user.bank +
+    inventoryValue +
+    petValue
+  );
+}
 
 module.exports = {
-  name: "clan-leaderboard",
-  aliases: ["clan leaderboard", "clan lb"],
-  async execute(message, args, client) {
-    const clans = await Clan.find().sort({ level: -1, bank: -1 }).limit(10);
-
-    const embed = {
-      title: "🏆 Clan Leaderboard",
-      description: clans.length > 0 
-        ? clans.map((c, i) => `**${i + 1}. ${c.name}**\nLvl: ${c.level || 1} | 💰 $${(c.bank || 0).toLocaleString()}`).join("\n\n")
-        : "No clans found.",
-      color: 0xffd700,
-      timestamp: new Date()
-    };
-
-    message.reply({ embeds: [embed] });
-  }
+  getLeaderboard,
 };

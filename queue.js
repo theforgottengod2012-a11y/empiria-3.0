@@ -1,11 +1,15 @@
+const { SlashCommandBuilder } = require("discord.js");
+
 module.exports = {
-  name: "queue",
-  aliases: ["q"],
-  async execute(message, args, client) {
-    const serverQueue = client.queue?.get(message.guild.id);
-    if (!serverQueue || !serverQueue.songs.length) return message.reply("The queue is empty.");
+  data: new SlashCommandBuilder()
+    .setName("queue")
+    .setDescription("Show the current music queue"),
+
+  async execute(interaction, client) {
+    const serverQueue = client.queue?.get(interaction.guild.id);
+    if (!serverQueue || !serverQueue.songs.length) return interaction.reply({ content: "The queue is empty.", ephemeral: true });
     
     const queueList = serverQueue.songs.map((song, index) => `${index + 1}. **${song.title}**`).join("\n");
-    message.channel.send(`📋 **Current Queue:**\n${queueList}`);
+    await interaction.reply(`📋 **Current Queue:**\n${queueList}`);
   }
 };

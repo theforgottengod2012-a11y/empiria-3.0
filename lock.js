@@ -1,20 +1,20 @@
-module.exports = {
-  name: "lock",
-  description: "Lock the current channel",
-  permissions: ["ManageChannels"],
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 
-  async execute(message, args) {
-    if (!message.guild.members.me.permissionsIn(message.channel).has("ManageRoles")) {
-      return message.reply("❌ I do not have permission to manage permissions in this channel.");
-    }
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName("lock")
+    .setDescription("Lock the current channel")
+    .addStringOption(option => option.setName("reason").setDescription("Reason for locking"))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  async execute(interaction) {
+    const reason = interaction.options.getString("reason") || "No reason provided";
+    
     try {
-      await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, {
-        SendMessages: false
-      });
-      message.channel.send("🔒 Channel locked.");
+      await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: false });
+      await interaction.reply({ content: `🔒 Channel locked. Reason: ${reason}` });
     } catch (error) {
-      console.error(error);
-      message.reply("❌ Failed to lock channel.");
+      await interaction.reply({ content: "❌ Failed to lock the channel.", ephemeral: true });
     }
   }
 };

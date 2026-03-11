@@ -1,67 +1,56 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
-const ReactionRole = require("../../database/models/ReactionRole");
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
 module.exports = {
-  name: "reactionrole",
-  aliases: ["rrole"],
-  description: "Setup reaction roles",
-  permissions: ["Administrator"],
-  async execute(message, args) {
-    const sub = args[0]?.toLowerCase();
+  data: new SlashCommandBuilder()
+    .setName("reactionrole")
+    .setDescription("Create a reaction role message")
+    .addStringOption(option => 
+      option.setName("title")
+        .setDescription("The title of the embed")
+        .setRequired(true))
+    .addStringOption(option => 
+      option.setName("description")
+        .setDescription("The description of the embed")
+        .setRequired(true))
+    .addRoleOption(option => 
+      option.setName("role")
+        .setDescription("The role to give")
+        .setRequired(true))
+    .addStringOption(option => 
+      option.setName("emoji")
+        .setDescription("The emoji to use (can be server emoji)")
+        .setRequired(true)),
 
-    if (sub === "setup") {
-      // Usage: $reactionrole setup
-      const embed = new EmbedBuilder()
-        .setTitle("🎭 Reaction Role Panel")
-        .setDescription("Select a role from the menu below!")
-        .setColor("#5865F2");
-
-      // Create a dummy message to set up
-      const msg = await message.reply({ embeds: [embed] });
-
-      // Save to database (empty for now - admin will add roles)
-      await ReactionRole.create({
-        guildId: message.guild.id,
-        messageId: msg.id,
-        channelId: message.channel.id,
-        roles: []
-      });
-
-      message.reply(`✅ Reaction role panel created! Message ID: \`${msg.id}\``);
+  async execute(interaction) {
+    if (!interaction.member.permissions.has("ManageRoles")) {
+      return interaction.reply({ content: "You don't have permission to use this command.", ephemeral: true });
     }
 
-    if (sub === "add") {
-      const messageId = args[1];
-      const roleId = message.mentions.roles.first()?.id;
-      const emoji = args[3];
+    const title = interaction.options.getString("title");
+    const description = interaction.options.getString("description");
+    const role = interaction.options.getRole("role");
+    const emojiInput = interaction.options.getString("emoji");
 
-      if (!messageId || !roleId || !emoji) {
-        return message.reply("❌ Usage: `$reactionrole add <messageId> <@role> <emoji>`");
-      }
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(`${description}\n\nClick the button below to get the **${role.name}** role!`)
+      .setColor(0x0099FF);
 
-      const rrole = await ReactionRole.findOne({ messageId });
-      if (!rrole) return message.reply("❌ Message not set up for reaction roles.");
+    const button = new ButtonBuilder()
+      .setCustomId(`role_${role.id}`)
+      .setLabel(`Get ${role.name}`)
+      .setStyle(ButtonStyle.Primary);
 
-      rrole.roles.push({ emoji, roleId, label: message.mentions.roles.first().name });
-      await rrole.save();
-
-      const msg = await message.channel.messages.fetch(messageId).catch(() => null);
-      if (msg) await msg.react(emoji).catch(() => {});
-
-      message.reply(`✅ Added role to reaction panel!`);
+    // Try to parse emoji
+    try {
+        button.setEmoji(emojiInput);
+    } catch (e) {
+        // If it's a custom emoji string like <:name:id>, discord.js handles it
+        // If it's just the ID, we might need to fetch it, but setEmoji usually works with the raw string
     }
 
-    if (sub === "remove") {
-      const messageId = args[1];
-      const emoji = args[2];
+    const row = new ActionRowBuilder().addComponents(button);
 
-      const rrole = await ReactionRole.findOne({ messageId });
-      if (!rrole) return message.reply("❌ Message not found.");
-
-      rrole.roles = rrole.roles.filter(r => r.emoji !== emoji);
-      await rrole.save();
-
-      message.reply(`✅ Removed role from panel!`);
-    }
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 };

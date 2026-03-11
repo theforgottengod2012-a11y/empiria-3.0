@@ -1,26 +1,27 @@
-const { PermissionFlagsBits } = require("discord.js");
-const { resolveMember } = require("../../utils/resolver");
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 
 module.exports = {
-  name: "nick",
-  aliases: ["nickname"],
-  description: "Change a member's nickname",
-  module: "moderation",
-  async execute(message, args) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ManageNicknames)) {
-      return message.reply("❌ You need `Manage Nicknames` permission.");
+  data: new SlashCommandBuilder()
+    .setName("nick")
+    .setDescription("Change a user's nickname")
+    .addUserOption(option => option.setName("target").setDescription("The user to change nickname").setRequired(true))
+    .addStringOption(option => option.setName("nickname").setDescription("The new nickname (leave empty to reset)"))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
+
+  async execute(interaction) {
+    const user = interaction.options.getUser("target");
+    const nickname = interaction.options.getString("nickname");
+    const member = await interaction.guild.members.fetch(user.id);
+
+    if (!member.manageable) {
+      return interaction.reply({ content: "❌ I cannot change this user's nickname.", ephemeral: true });
     }
 
-    const member = await resolveMember(message, args[0]);
-    const nick = args.slice(1).join(" ");
-
-    if (!member) return message.reply("❌ Usage: `$nick <@member|ID> <new nickname>`");
-
     try {
-      await member.setNickname(nick || null);
-      message.reply(`✅ Nickname for **${member.user.tag}** ${nick ? `set to **${nick}**` : "cleared"}.`);
-    } catch (err) {
-      message.reply("❌ Failed to change nickname. Hierarchy or permission issue.");
+      await member.setNickname(nickname);
+      await interaction.reply({ content: `✅ Successfully changed nickname for **${user.tag}**.` });
+    } catch (error) {
+      await interaction.reply({ content: "❌ Failed to change nickname.", ephemeral: true });
     }
   }
 };

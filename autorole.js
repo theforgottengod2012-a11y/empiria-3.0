@@ -1,30 +1,18 @@
-const { PermissionFlagsBits } = require("discord.js");
+const GuildSettings = require("../../database/models/GuildSettings");
 
 module.exports = {
-  name: "autorole",
-  description: "Set a role to be automatically given to new members",
-  module: "moderation",
+  name: "setautorole",
+  permissions: ["Administrator"],
   async execute(message, args) {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return message.reply("❌ Only administrators can set autoroles.");
-    }
+    const role = message.mentions.roles.first();
+    if (!role) return message.reply("Mention a valid role.");
 
-    const role = message.mentions.roles.first() || message.guild.roles.cache.get(args[0]);
-    if (!role) return message.reply("❌ Usage: `$autorole <@role|ID>` (or `$autorole off` to disable)");
+    let settings = await GuildSettings.findOne({ guildId: message.guild.id });
+    if (!settings) settings = new GuildSettings({ guildId: message.guild.id });
 
-    const AutoMod = require("../../database/models/AutoMod");
-    let config = await AutoMod.findOne({ guildId: message.guild.id });
-    
-    if (!config) config = new AutoMod({ guildId: message.guild.id });
+    settings.autorole = role.id;
+    await settings.save();
 
-    if (args[0]?.toLowerCase() === "off") {
-      config.autoRole = null;
-      await config.save();
-      return message.reply("✅ Auto-role has been disabled.");
-    }
-
-    config.autoRole = role.id;
-    await config.save();
-    message.reply(`✅ Auto-role set to: **${role.name}**`);
+    message.channel.send(`✅ Autorole set to ${role.name}`);
   }
 };

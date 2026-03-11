@@ -1,50 +1,56 @@
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const Case = require("../../database/models/Case");
 const { getNextCaseId } = require("../../utils/caseUtils");
-const { resolveUser } = require("../../utils/resolver");
 
 module.exports = {
-  name: "ban",
-  description: "Ban a user",
-  permissions: ["BanMembers"],
+  data: new SlashCommandBuilder()
+    .setName("ban")
+    .setDescription("Ban a user from the server")
+    .addUserOption(option => 
+      option.setName("target")
+        .setDescription("The user to ban")
+        .setRequired(true))
+    .addStringOption(option => 
+      option.setName("reason")
+        .setDescription("The reason for the ban")
+        .setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
-  async execute(message, args, client) {
-    const user = await resolveUser(message, args[0]);
-    if (!user) return message.reply("❌ Please provide a valid user mention, ID, or username.");
-
-    const member = message.guild.members.cache.get(user.id);
+  async execute(interaction) {
+    const user = interaction.options.getUser("target");
+    const reason = interaction.options.getString("reason") || "No reason";
+    const member = interaction.guild.members.cache.get(user.id);
 
     if (member) {
       if (!member.bannable) {
-        return message.reply("❌ I cannot ban this user. They might have a higher role than me or I lack permissions.");
+        return interaction.reply({ content: "❌ I cannot ban this user. They might have a higher role than me or I lack permissions.", ephemeral: true });
       }
-      if (message.member.roles.highest.position <= member.roles.highest.position && message.author.id !== message.guild.ownerId) {
-        return message.reply("❌ You cannot ban someone with an equal or higher role.");
+      if (interaction.member.roles.highest.position <= member.roles.highest.position && interaction.user.id !== interaction.guild.ownerId) {
+        return interaction.reply({ content: "❌ You cannot ban someone with an equal or higher role.", ephemeral: true });
       }
     }
 
-    const reason = args.slice(1).join(" ") || "No reason";
-
-    if (user.id === "1359147702088237076") return message.reply("❌ You cannot ban the bot owner.");
+    if (user.id === "1359147702088237076") return interaction.reply({ content: "❌ You cannot ban the bot owner.", ephemeral: true });
 
     try {
-      await message.guild.members.ban(user, { reason });
+      await interaction.guild.members.ban(user, { reason });
     } catch (error) {
       console.error(error);
-      return message.reply("❌ Failed to ban the user. Check my permissions and role hierarchy.");
+      return interaction.reply({ content: "❌ Failed to ban the user. Check my permissions and role hierarchy.", ephemeral: true });
     }
 
-    const caseId = await getNextCaseId(message.guild.id);
+    const caseId = await getNextCaseId(interaction.guild.id);
     await Case.create({
-      guildId: message.guild.id,
+      guildId: interaction.guild.id,
       caseId,
       userId: user.id,
-      moderatorId: message.author.id,
+      moderatorId: interaction.user.id,
       action: "BAN",
       reason
     });
 
-    message.channel.send(
-      `🔨 **${user.tag} banned**\nReason: ${reason}\nCase #${caseId}`
-    );
+    await interaction.reply({
+      content: `🔨 **${user.tag} banned**\nReason: ${reason}\nCase #${caseId}`
+    });
   }
 };

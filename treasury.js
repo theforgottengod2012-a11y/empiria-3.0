@@ -1,24 +1,30 @@
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Government = require("../../database/models/Government");
 
 module.exports = {
-  name: "treasury",
-  description: "View the government treasury",
-  category: "government",
-  ownerOnly: false,
-  async execute(message, args) {
-    const guildId = message.guild.id;
+  data: new SlashCommandBuilder()
+    .setName("treasury")
+    .setDescription("View the government treasury"),
+
+  async execute(interaction) {
+    const guildId = interaction.guild.id;
 
     let government = await Government.findOne({ guildId });
     if (!government) {
-      return message.reply("❌ No government system found in this server.");
+      return interaction.reply({
+        content: "❌ No government system found in this server.",
+        ephemeral: true
+      });
     }
 
     if (!government.government.enabled) {
-      return message.reply("❌ Government system is not enabled.");
+      return interaction.reply({
+        content: "❌ Government system is not enabled.",
+        ephemeral: true
+      });
     }
 
-    return message.reply({
+    return interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor("#1f8b4c")

@@ -1,39 +1,39 @@
-const { PermissionFlagsBits } = require("discord.js");
-const { resolveRole } = require("../../utils/resolver");
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 
 module.exports = {
-  name: "editrole",
-  description: "Edit a role's name or color",
-  module: "moderation",
-  async execute(message, args) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-      return message.reply("❌ You need `Manage Roles` permission.");
-    }
+  data: new SlashCommandBuilder()
+    .setName("editrole")
+    .setDescription("Edit a role's properties")
+    .addRoleOption(option => option.setName("role").setDescription("The role to edit").setRequired(true))
+    .addStringOption(option => option.setName("name").setDescription("The new name for the role"))
+    .addStringOption(option => option.setName("color").setDescription("The new color for the role (hex code)"))
+    .addBooleanOption(option => option.setName("hoist").setDescription("Whether the role should be displayed separately"))
+    .addBooleanOption(option => option.setName("mentionable").setDescription("Whether the role should be mentionable"))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
-    const role = resolveRole(message, args[0]);
-    if (!role) return message.reply("❌ Usage: `$editrole <@role|ID|name> <name|color> <value>`");
+  async execute(interaction) {
+    const role = interaction.options.getRole("role");
+    const name = interaction.options.getString("name");
+    const color = interaction.options.getString("color");
+    const hoist = interaction.options.getBoolean("hoist");
+    const mentionable = interaction.options.getBoolean("mentionable");
 
-    const option = args[1]?.toLowerCase();
-    const value = args.slice(2).join(" ");
-
-    if (!option || !value) return message.reply("❌ Specify what to edit (name/color) and the new value.");
-
-    if (role.position >= message.guild.members.me.roles.highest.position) {
-      return message.reply("❌ I cannot edit this role due to hierarchy.");
+    if (role.position >= interaction.guild.members.me.roles.highest.position) {
+      return interaction.reply({ content: "❌ I cannot edit this role as it is higher than or equal to my highest role.", ephemeral: true });
     }
 
     try {
-      if (option === "name") {
-        await role.setName(value);
-        message.reply(`✅ Role name updated to **${value}**.`);
-      } else if (option === "color") {
-        await role.setColor(value.startsWith("#") ? value : `#${value}`);
-        message.reply(`✅ Role color updated to **${value}**.`);
-      } else {
-        message.reply("❌ Invalid option. Use `name` or `color`.");
-      }
-    } catch (err) {
-      message.reply("❌ Failed to edit role. Make sure the color hex is valid.");
+      const data = {};
+      if (name) data.name = name;
+      if (color) data.color = color;
+      if (hoist !== null) data.hoist = hoist;
+      if (mentionable !== null) data.mentionable = mentionable;
+
+      await role.edit(data);
+      await interaction.reply({ content: `✅ Successfully updated role **${role.name}**.` });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply({ content: "❌ Failed to edit the role. Make sure the color hex is valid and I have permissions.", ephemeral: true });
     }
   }
 };
